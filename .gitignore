@@ -1,3 +1,6 @@
 soc_final_project.mpf
 transcript
 work/
+*.mpf
+*.mti
+soc_final_project/
