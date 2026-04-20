@@ -29,9 +29,14 @@ module stats_accel_axil #(
     output logic                             s_axi_rvalid,
     input  logic                             s_axi_rready,
 
-    output logic                             bram_en,
-    output logic [BRAM_ADDR_W-1:0]           bram_addr,
-    input  logic [31:0]                      bram_rdata
+    // BRAM Port B style interface (to blk_mem_gen_0/BRAM_PORTB)
+    output logic [31:0]                      bram_addr,   // -> addrb[31:0]
+    output logic                             bram_clk,    // -> clkb
+    output logic [31:0]                      bram_wdata,  // -> dinb[31:0] (unused, read-only)
+    input  logic [31:0]                      bram_rdata,  // <- doutb[31:0]
+    output logic                             bram_en,     // -> enb
+    output logic                             bram_rst,    // -> rstb
+    output logic [3:0]                       bram_we      // -> web[3:0] (all zero, read-only)
   );
 
   localparam int ADDR_LSB      = 2;
@@ -44,7 +49,7 @@ module stats_accel_axil #(
   localparam int REG_MINVAL    = 6; // 0x18
   localparam int REG_MAXVAL    = 7; // 0x1C
   localparam int REG_COUNTGT   = 8; // 0x20
-  localparam int REG_CYCLECNT  = 9; // 0x24
+  localparam int REG_CYCLECNT  = 9; // 0x24;
 
   logic                           aw_hold_valid;
   logic                           w_hold_valid;
@@ -65,6 +70,19 @@ module stats_accel_axil #(
   logic [31:0]                    core_countgt;
   logic [31:0]                    core_cyclecount;
 
+  // Core-facing BRAM addr (word index)
+  logic [BRAM_ADDR_W-1:0]         core_bram_addr;
+
+  // Tie BRAM clock/reset/write signals
+  assign bram_clk   = s_axi_aclk;
+  assign bram_rst   = 1'b0;
+  assign bram_we    = 4'b0000;     // read-only
+  assign bram_wdata = 32'd0;      // unused
+
+  // Expand core address into 32-bit BRAM address bus (low bits used, rest zero)
+  assign bram_addr = 32'd0 | core_bram_addr;
+
+  // AXI handshake
   assign s_axi_awready = !aw_hold_valid && !s_axi_bvalid;
   assign s_axi_wready  = !w_hold_valid  && !s_axi_bvalid;
   assign s_axi_arready = !s_axi_rvalid;
@@ -207,22 +225,22 @@ module stats_accel_axil #(
                             .MAX_WORDS (MAX_WORDS),
                             .ADDR_W    (BRAM_ADDR_W)
                           ) u_core (
-                            .clk         (s_axi_aclk),
-                            .rst_n       (s_axi_aresetn),
-                            .start       (start_pulse),
-                            .clear_done  (clear_done_pulse),
-                            .length_words(length_reg),
-                            .threshold   (threshold_reg),
-                            .busy        (core_busy),
-                            .done        (core_done),
-                            .bram_en     (bram_en),
-                            .bram_addr   (bram_addr),
-                            .bram_rdata  (bram_rdata),
-                            .sum         (core_sum),
-                            .minval      (core_minval),
-                            .maxval      (core_maxval),
-                            .countgt     (core_countgt),
-                            .cyclecount  (core_cyclecount)
+                            .clk          (s_axi_aclk),
+                            .rst_n        (s_axi_aresetn),
+                            .start        (start_pulse),
+                            .clear_done   (clear_done_pulse),
+                            .length_words (length_reg),
+                            .threshold    (threshold_reg),
+                            .busy         (core_busy),
+                            .done         (core_done),
+                            .bram_en      (bram_en),
+                            .bram_addr    (core_bram_addr),
+                            .bram_rdata   (bram_rdata),
+                            .sum          (core_sum),
+                            .minval       (core_minval),
+                            .maxval       (core_maxval),
+                            .countgt      (core_countgt),
+                            .cyclecount   (core_cyclecount)
                           );
 
 endmodule
