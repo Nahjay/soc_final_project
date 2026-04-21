@@ -1,17 +1,17 @@
-# MicroBlaze PetaLinux Statistics Accelerator
+# MicroBlaze Statistics Accelerator
 
-Simple SoC final project for the AMD Urbana board.
+Custom AXI-Lite statistics accelerator for the AMD Urbana board.
 
-This project implements a custom AXI-Lite statistics accelerator connected to a MicroBlaze-based embedded Linux system. Linux userspace writes a dataset into BRAM, programs the accelerator, starts the run, polls for completion, reads the results back, and compares hardware results against a software reference model.
+This project integrates a custom statistics accelerator into a MicroBlaze-based system. A Vitis application running directly on the board writes a dataset into BRAM, programs the accelerator, starts the run, polls for completion, reads the results back, and compares the hardware results against a software reference model.
 
 ## Project goal
 
-This project is designed to satisfy the course requirements with the simplest reliable implementation path:
+This project implements:
 
 - Hardware acceleration
 - Softcore processor usage
 - Custom AXI peripheral integration
-- Embedded Linux control of hardware
+- Software control of hardware from a MicroBlaze system
 
 The accelerator scans 32-bit unsigned integer data stored in BRAM and computes:
 
@@ -21,30 +21,29 @@ The accelerator scans 32-bit unsigned integer data stored in BRAM and computes:
 - Count of values strictly greater than a programmable threshold
 - Cycle count for the hardware run
 
-## Fixed architecture
+## System architecture
 
 System flow:
 
-1. MicroBlaze boots PetaLinux.
-2. Linux userspace app maps accelerator registers and BRAM.
-3. App fills BRAM with test data.
-4. App writes `LENGTHWORDS` and `THRESHOLD`.
-5. App starts the accelerator.
-6. App polls until `done == 1`.
-7. App reads back all result registers.
-8. App computes the same statistics in software.
-9. App compares hardware and software results and prints PASS/FAIL.
+1. The hardware platform is programmed onto the board.
+2. A Vitis application runs on MicroBlaze.
+3. The application fills BRAM with test data.
+4. The application writes `LENGTHWORDS` and `THRESHOLD`.
+5. The application starts the accelerator.
+6. The application polls until `done == 1`.
+7. The application reads back all result registers.
+8. The application computes the same statistics in software.
+9. The application compares hardware and software results and prints PASS/FAIL.
 
 Expected hardware blocks:
 
 - MicroBlaze
-- DDR memory interface for Linux
-- UART for serial console
+- UART for serial console output
 - AXI interconnect / SmartConnect
 - AXI BRAM Controller
 - BRAM for dataset storage
 - Custom statistics accelerator IP
-- Optional AXI GPIO for LED
+- Standard interrupt infrastructure
 - Standard reset / clocking infrastructure
 
 ## Data contract
@@ -52,7 +51,7 @@ Expected hardware blocks:
 - Data type: 32-bit unsigned integers
 - Dataset storage: BRAM
 - Dataset size target: 1024 words
-- BRAM target size: 4096 bytes
+- BRAM target size: 8192 bytes
 - Valid `LENGTHWORDS`: 1 to 1024
 - Accelerator processes words `0` through `LENGTHWORDS - 1`
 
@@ -68,54 +67,61 @@ Expected hardware blocks:
 | `0x14` | `SUMHI` | Sum bits `[63:32]` |
 | `0x18` | `MINVAL` | Minimum value in dataset |
 | `0x1C` | `MAXVAL` | Maximum value in dataset |
-| `0x20` | `COUNTGT` | Count of values `>` threshold |
+| `0x20` | `COUNTGT` | Count of values `> threshold` |
 | `0x24` | `CYCLECOUNT` | Cycle count while accelerator is busy |
-
-## Accelerator behavior requirements
-
-The RTL must:
-
-- Use an FSM-based sequential scan
-- Read one BRAM word at a time
-- Correctly handle synchronous BRAM read latency
-- Compute a 64-bit sum exposed through `SUMLO` and `SUMHI`
-- Assert `busy` while running
-- Assert `done` when complete
-- Latch `done` until cleared or a new run begins
-- Ignore a new `start` while busy
-- Increment `cyclecount` only while busy
-- Never read past `LENGTHWORDS - 1`
 
 ## Repository structure
 
 ```text
-soc-final-project/
-├── README.md
-├── hw/
-│   ├── ip/
-│   │   └── statistics_accel/
-│   │       ├── rtl/
-│   │       │   ├── stats_accel_core.sv
-│   │       │   └── stats_accel_axil.sv
-│   │       ├── sim/
-│   │       │   └── tb_stats_accel_core.sv
-│   │       └── packaging/
-│   ├── bd/
-│   └── scripts/
-├── linux/
-│   ├── petalinux/
-│   └── app/
-│       ├── stats_accel_app.c
-│       └── Makefile
-├── docs/
-│   ├── diagrams/
-│   └── notes/
-│       ├── register_map.md
-│       └── bringup_checklist.md
-└── demo/
-    ├── screenshots/
-    └── logs/
+.
+├── _ide
+│   └── logs
+├── hello_world
+│   ├── _ide
+│   │   └── bitstream
+│   ├── build
+│   │   └── CMakeFiles
+│   │       ├── 3.24.2
+│   │       ├── CMakeTmp
+│   │       ├── hello_world.elf.dir
+│   │       └── pkgRedirects
+│   └── src
+├── hw
+│   ├── bd
+│   │   ├── constraints
+│   │   └── exported
+│   ├── ip
+│   │   └── statistics_accel
+│   │       ├── rtl
+│   │       └── sim
+│   └── scripts
+└── platform
+    ├── export
+    │   └── platform
+    │       ├── hw
+    │       └── sw
+    ├── hw
+    │   └── sdt
+    │       ├── extracted
+    │       └── include
+    ├── logs
+    ├── microblaze_0
+    │   └── standalone_microblaze_0
+    │       └── bsp
+    └── resources
+        ├── qemu
+        └── standalone_microblaze_0
+            └── qemu
 ```
+
+## Component overview
+
+- `hello_world/` is the Vitis application component.
+- `platform/` is the Vitis platform component.
+- `hw/ip/statistics_accel/rtl/` contains the accelerator RTL.
+- `hw/ip/statistics_accel/sim/` contains simulation files for the accelerator.
+- `hw/bd/` contains block design exports and related hardware design files.
+- `hw/scripts/` contains scripts used for hardware generation and recreation.
 
 ## What goes where
 
@@ -131,150 +137,10 @@ Directory: `hw/ip/statistics_accel/rtl/`
   - cycle count
 
 - `stats_accel_axil.sv`  
-  AXI-Lite register wrapper around the core. Exposes the frozen register map and connects to the BRAM read port.
+  AXI-Lite register wrapper around the core. Exposes the register map and connects to the BRAM read port.
 
 ### Simulation
 Directory: `hw/ip/statistics_accel/sim/`
 
 - `tb_stats_accel_core.sv`  
-  Self-checking testbench for the core. Should compare DUT outputs against a software-style reference model.
-
-### Vivado hardware platform
-Directories: `hw/bd/`, `hw/scripts/`
-
-Use these for:
-
-- Block design exports
-- Address map notes
-- Tcl scripts to recreate the block design
-- IP packaging notes
-- XSA export notes
-- Bring-up notes
-
-### Linux
-Directories: `linux/petalinux/`, `linux/app/`
-
-- `linux/petalinux/`  
-  PetaLinux project setup notes, config steps, and any device tree notes if needed
-
-- `linux/app/stats_accel_app.c`  
-  Userspace control application that:
-  1. maps registers and BRAM
-  2. fills BRAM with datasets
-  3. programs accelerator registers
-  4. starts the accelerator
-  5. polls for completion
-  6. reads results
-  7. compares with software reference
-  8. prints PASS/FAIL
-
-- `linux/app/Makefile`  
-  Build instructions for the userspace app
-
-### Documentation and evidence
-Directories: `docs/`, `demo/`
-
-Use `docs/` for:
-
-- Register map documentation
-- System diagrams
-- Bring-up checklist
-- Debug notes
-- Test matrix
-
-Use `demo/` for:
-
-- Linux boot screenshots
-- Terminal output showing PASS results
-- Vivado screenshots
-- Board photos
-- UART logs
-
-## Recommended implementation order
-
-1. Finish and simulate `stats_accel_core.sv`
-2. Add and simulate `stats_accel_axil.sv`
-3. Package accelerator as Vivado IP
-4. Build MicroBlaze + DDR + UART + AXI BRAM + custom IP block design
-5. Export hardware platform / XSA
-6. Bring up PetaLinux
-7. Write userspace test app
-8. Run end-to-end hardware/software comparison
-9. Collect demo evidence
-10. Final cleanup and report
-
-## Required software test patterns
-
-At minimum, test:
-
-- Ascending values
-- Descending values
-- All equal values
-- Pseudo-random values with fixed seed
-- Single-element dataset
-
-Required coverage should include:
-
-- `LENGTHWORDS = 1`
-- `LENGTHWORDS = 16`
-- `LENGTHWORDS = 1024`
-
-Threshold tests should include:
-
-- Threshold below all values
-- Threshold above all values
-- Threshold in the middle of the dataset
-
-Robustness tests should include:
-
-- Repeated runs without power cycle
-- Repeated start commands across multiple runs
-- Correct `done` / `busy` behavior
-- Correct `cleardone` behavior
-
-## Acceptance criteria
-
-Project is complete when all of the following are true:
-
-- Bitstream builds successfully
-- Hardware platform programs onto the board
-- UART console is alive
-- PetaLinux boots reliably
-- Linux app runs from shell
-- BRAM can be written/read by software
-- Accelerator can be started from Linux
-- Polling completes successfully
-- Hardware results exactly match software reference
-- Multiple datasets and thresholds pass
-- Repeated runs work without reboot
-- Final demo clearly shows course requirement coverage
-
-## Simplification rules
-
-If time gets tight, remove features in this order:
-
-1. LED demo
-2. Extra test patterns
-3. Performance benchmarking detail
-4. Anything not required for correctness/demo
-
-Do not remove:
-
-- MicroBlaze
-- PetaLinux
-- Custom accelerator
-- AXI-Lite peripheral behavior
-- BRAM data path
-- Software-versus-hardware correctness checking
-
-## Notes
-
-Keep the implementation simple:
-
-- Polling only
-- No interrupts unless everything else already works
-- No DMA
-- No AXI-Stream
-- No HLS
-- No unnecessary extra features
-- Favor reliability and fastest completion over ambition
+  Self-checking testbench for
