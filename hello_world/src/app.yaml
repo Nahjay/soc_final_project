@@ -1,0 +1,4 @@
+domain_path: C:\Users\Atomi\Dev\Documents\School\Spring2026\SoC\Projects\soc_final_project\platform\export\platform\sw\standalone_microblaze_0
+app_src_dir: C:\AMDDesignTools\2025.2\Vitis\data\embeddedsw\lib\sw_apps\hello_world
+template: hello_world
+lang: c
