@@ -80,7 +80,8 @@ module stats_accel_axil #(
   assign bram_wdata = 32'd0;      // unused
 
   // Expand core address into 32-bit BRAM address bus (low bits used, rest zero)
-  assign bram_addr = 32'd0 | core_bram_addr;
+  // Add shifting
+  assign bram_addr = (core_bram_addr << 2);
 
   // AXI handshake
   assign s_axi_awready = !aw_hold_valid && !s_axi_bvalid;
