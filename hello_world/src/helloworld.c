@@ -34,7 +34,7 @@ int main() {
 
     xil_printf("\r\n--- HW vs SW Performance Benchmark (N=%u) ---\r\n", n);
 
-    // 1. Initialize BRAM
+    // Initialize BRAM
     for (uint32_t i = 0; i < n; i++) {
         uint32_t v = i + 100;
         Xil_Out32(BRAM_BASE + (i * 4), v);
