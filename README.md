@@ -75,39 +75,42 @@ Expected hardware blocks:
 ```text
 .
 ├── _ide
-│   └── logs
+│   └── logs
+├── docs
+│   ├── report
+│   └── screenshots
 ├── hello_world
-│   ├── _ide
-│   │   └── bitstream
-│   ├── build
-│   │   └── CMakeFiles
-│   │       ├── 3.24.2
-│   │       ├── CMakeTmp
-│   │       ├── hello_world.elf.dir
-│   │       └── pkgRedirects
-│   └── src
+│   ├── _ide
+│   │   └── bitstream
+│   ├── build
+│   │   └── CMakeFiles
+│   │       ├── 3.24.2
+│   │       ├── CMakeTmp
+│   │       ├── hello_world.elf.dir
+│   │       └── pkgRedirects
+│   └── src
 ├── hw
-│   ├── bd
-│   │   ├── constraints
-│   │   └── exported
-│   ├── ip
-│   │   └── statistics_accel
-│   │       ├── rtl
-│   │       └── sim
-│   └── scripts
+│   ├── bd
+│   │   ├── constraints
+│   │   └── exported
+│   ├── ip
+│   │   └── statistics_accel
+│   │       ├── rtl
+│   │       └── sim
+│   └── scripts
 └── platform
     ├── export
-    │   └── platform
-    │       ├── hw
-    │       └── sw
+    │   └── platform
+    │       ├── hw
+    │       └── sw
     ├── hw
-    │   └── sdt
-    │       ├── extracted
-    │       └── include
+    │   └── sdt
+    │       ├── extracted
+    │       └── include
     ├── logs
     ├── microblaze_0
-    │   └── standalone_microblaze_0
-    │       └── bsp
+    │   └── standalone_microblaze_0
+    │       └── bsp
     └── resources
         ├── qemu
         └── standalone_microblaze_0
